@@ -1,37 +1,24 @@
-# syntax = docker/dockerfile:1
-
 FROM --platform=${BUILDPLATFORM} golang:1.19-alpine3.17 AS base
 ENV CGO_ENABLED=0
 
 WORKDIR /src
 
-COPY go.mod go.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download
+COPY go.* .
+RUN go mod download
+COPY ./ ./
 
 FROM base AS build
 ARG TARGETOS
 ARG TARGETARCH
-RUN --mount=target=. \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /out/example .
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /out/example .
 
 FROM base AS unit-test
-RUN --mount=target=. \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    mkdir /out && go test -v -coverprofile=/out/cover.out ./...
+RUN mkdir /out && go test -v -coverprofile=/out/cover.out ./...
 
 FROM golangci/golangci-lint:v1.43-alpine AS lint-base
 
 FROM base AS lint
-RUN --mount=target=. \
-    --mount=from=lint-base,src=/usr/bin/golangci-lint,target=/usr/bin/golangci-lint \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/root/.cache/golangci-lint \
-    golangci-lint run --timeout 10m0s ./...
+RUN golangci-lint run --timeout 10m0s ./...
 
 FROM scratch AS unit-test-coverage
 COPY --from=unit-test /out/cover.out /cover.out
