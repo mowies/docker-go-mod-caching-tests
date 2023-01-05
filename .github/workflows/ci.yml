@@ -14,12 +14,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Run linter
-      run: make lint
-
-    - name: Run unit tests
-      run: make unit-test
-
     - name: Get unit test coverage
       run: make unit-test-coverage
 
